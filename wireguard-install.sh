@@ -1,5 +1,5 @@
 #!/bin/bash
-
+HOME=$(pwd)
 function addClient() {
 	# Load params
 	source /etc/wireguard/params
@@ -12,23 +12,24 @@ function addClient() {
 		ENDPOINT="$SERVER_PUB_IP:$SERVER_PORT"
 	fi
 
-	CLIENT_WG_IPV4="10.66.66.2"
+	CLIENT_WG_IPV4="10.27.27.12"
 	read -rp "Client's WireGuard IPv4 " -e -i "$CLIENT_WG_IPV4" CLIENT_WG_IPV4
 
 	CLIENT_WG_IPV6="fd42:42:42::2"
 	read -rp "Client's WireGuard IPv6 " -e -i "$CLIENT_WG_IPV6" CLIENT_WG_IPV6
 
 	# Adguard DNS by default
-	CLIENT_DNS_1="176.103.130.130"
+	CLIENT_DNS_1="192.168.1.223"
 	read -rp "First DNS resolver to use for the client: " -e -i "$CLIENT_DNS_1" CLIENT_DNS_1
 
 	CLIENT_DNS_2="176.103.130.131"
 	read -rp "Second DNS resolver to use for the client: " -e -i "$CLIENT_DNS_2" CLIENT_DNS_2
 
-	CLIENT_NAME=$(
-		head /dev/urandom | tr -dc A-Za-z0-9 | head -c 10
-		echo ''
-	)
+#	CLIENT_NAME=$(
+#		head /dev/urandom | tr -dc A-Za-z0-9 | head -c 10
+#		echo ''
+#	)
+read -rp "Client name: " -e -i "$CLIENT_NAME" CLIENT_NAME
 
 	# Generate key pair for the client
 	CLIENT_PRIV_KEY=$(wg genkey)
@@ -38,20 +39,20 @@ function addClient() {
 	# Create client file and add the server as a peer
 	echo "[Interface]
 PrivateKey = $CLIENT_PRIV_KEY
-Address = $CLIENT_WG_IPV4/24,$CLIENT_WG_IPV6/64
-DNS = $CLIENT_DNS_1,$CLIENT_DNS_2
+Address = $CLIENT_WG_IPV4/24
+DNS = $CLIENT_DNS_1
 
-[Peer]
+[Peer] # $CLIENT_NAME
 PublicKey = $SERVER_PUB_KEY
 PresharedKey = $CLIENT_PRE_SHARED_KEY
 Endpoint = $ENDPOINT
-AllowedIPs = 0.0.0.0/0,::/0" >>"$HOME/$SERVER_WG_NIC-client-$CLIENT_NAME.conf"
+AllowedIPs = 0.0.0.0/0" >>"$HOME/$SERVER_WG_NIC-client-$CLIENT_NAME.conf"
 
 	# Add the client as a peer to the server
-	echo -e "\n[Peer]
+	echo -e "\n[Peer] # $CLIENT_NAME
 PublicKey = $CLIENT_PUB_KEY
 PresharedKey = $CLIENT_PRE_SHARED_KEY
-AllowedIPs = $CLIENT_WG_IPV4/32,$CLIENT_WG_IPV6/128" >>"/etc/wireguard/$SERVER_WG_NIC.conf"
+AllowedIPs = $CLIENT_WG_IPV4/32" >>"/etc/wireguard/$SERVER_WG_NIC.conf"
 
 	systemctl restart "wg-quick@$SERVER_WG_NIC"
 
